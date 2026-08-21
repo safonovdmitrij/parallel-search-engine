@@ -1,3 +1,0 @@
-D:/LABY/Course4/parallel-search-engine/cmake-build-debug/CMakeFiles/parallel_search_engine.dir
-D:/LABY/Course4/parallel-search-engine/cmake-build-debug/CMakeFiles/edit_cache.dir
-D:/LABY/Course4/parallel-search-engine/cmake-build-debug/CMakeFiles/rebuild_cache.dir
