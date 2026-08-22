@@ -10,6 +10,7 @@ find_package(nlohmann_json CONFIG REQUIRED)
 
 add_executable(search_server
         src/main.cpp
+        src/OllamaClient.cpp
 )
 
 target_link_libraries(search_server PRIVATE
