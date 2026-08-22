@@ -4,10 +4,23 @@
 #include <iostream>
 #include <string>
 
+std::size_t writeCallback(char* data, std::size_t size, std::size_t count, void* userData)
+{
+    const std::size_t totalSize = size * count;
+
+    auto* responseBody = static_cast<std::string*>(userData);
+
+    responseBody->append(data, totalSize);
+
+    return totalSize;
+}
+
+
 int main()
 {
     CURLcode result, initResult;
     CURL* curl;
+    std::string requestBody, responseBody;
 
     initResult = curl_global_init(CURL_GLOBAL_DEFAULT);
     if(initResult != CURLE_OK)
@@ -28,11 +41,11 @@ int main()
 
     const nlohmann::json requestJson = {
         {"model", "gemma3:1b"},
-        {"prompt", "Why is the sky blue?"},
+        {"prompt", "Explain why is the sky blue in one paragraph"},
         {"stream", false}
     };
 
-    const std::string requestBody = requestJson.dump();
+    requestBody = requestJson.dump();
 
     curl_slist* headers = nullptr;
 
@@ -40,6 +53,8 @@ int main()
 
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, requestBody.c_str());
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseBody);
 
     result = curl_easy_perform(curl);
     if(result != CURLE_OK)
@@ -47,6 +62,10 @@ int main()
         std::cerr << "Curl perform failed: " << curl_easy_strerror(result) << std::endl;
         return -1;
     }
+
+    nlohmann::json ollamaResponse = nlohmann::json::parse(responseBody);
+    std::string modelResponse = ollamaResponse.at("response").get<std::string>();
+    std::cout << modelResponse << std::endl;
 
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
