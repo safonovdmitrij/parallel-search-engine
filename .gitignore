@@ -3,6 +3,11 @@ cmake-build-*/
 build/
 out/
 vcpkg_installed/
+data/archives/*
+data/raw/*
+
+!data/archives/.gitkeep
+!data/raw/.gitkeep
 
 *.exe
 *.dll
