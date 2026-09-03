@@ -6,7 +6,7 @@
 class OllamaClient
 {
 public:
-    std::string generate(const std::string& prompt);
+    std::string expandQuery(const std::string& query);
 };
 
 

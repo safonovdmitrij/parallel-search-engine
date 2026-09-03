@@ -18,7 +18,7 @@ std::size_t writeCallback(char* data, std::size_t size, std::size_t count, void*
 }
 
 
-std::string OllamaClient::generate(const std::string& prompt)
+std::string OllamaClient::expandQuery(const std::string& query)
 {
     CURLcode result, initResult;
     CURL* curl;
@@ -41,9 +41,15 @@ std::string OllamaClient::generate(const std::string& prompt)
 
     curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:11434/api/generate");
 
+    const std::string expansionPrompt =
+        "Expand the following search query with relevant synonyms and related terms. "
+        "Return only the expanded query without explanations.\n"
+        "Query: " + query;
+
+
     const nlohmann::json requestJson = {
         {"model", "gemma3:1b"},
-        {"prompt", "Explain why is the sky blue in one paragraph"},
+        {"prompt", expansionPrompt},
         {"stream", false}
     };
 
