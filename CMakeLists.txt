@@ -12,6 +12,7 @@ add_executable(search_server
         src/main.cpp
         src/OllamaClient.cpp
         src/DataLoader.cpp
+        src/TextProcessor.cpp
 )
 
 target_link_libraries(search_server PRIVATE
