@@ -13,6 +13,7 @@ add_executable(search_server
         src/OllamaClient.cpp
         src/DataLoader.cpp
         src/TextProcessor.cpp
+        src/InvertedIndex.cpp
 )
 
 target_link_libraries(search_server PRIVATE
