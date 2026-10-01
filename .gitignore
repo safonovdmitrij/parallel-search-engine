@@ -5,9 +5,11 @@ out/
 vcpkg_installed/
 data/archives/*
 data/raw/*
+data/test/
 
 !data/archives/.gitkeep
 !data/raw/.gitkeep
+
 
 *.exe
 *.dll
