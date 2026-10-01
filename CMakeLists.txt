@@ -15,6 +15,7 @@ add_executable(search_server
         src/TextProcessor.cpp
         src/InvertedIndex.cpp
         src/Indexer.cpp
+        src/SearchService.cpp
 )
 
 target_link_libraries(search_server PRIVATE
