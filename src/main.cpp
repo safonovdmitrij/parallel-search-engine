@@ -56,8 +56,8 @@ int main()
             textProcessor
         );
 
-        std::cout << "\nEnter a single-term query."
-                  << "\nEnter 'exit' to quit.\n";
+        std::cout << "\nEnter a search query." << "\nEnter 'exit' to quit.\n";
+
 
         std::string query;
 
@@ -71,24 +71,22 @@ int main()
 
             try
             {
-                const auto postings = searchService.search(query);
+                const auto results = searchService.search(query);
 
-                std::cout << "Documents found: "
-                          << postings.size() << '\n';
+                std::cout << "Documents found: " << results.size() << '\n';
 
-                for (const Posting& posting : postings)
+                for (const SearchResult& result : results)
                 {
-                    std::cout << "Document ID: "
-                              << posting.documentId
+                    std::cout << "Document ID: " << result.documentId
                               << " | Path: "
-                              << documentPaths.at(
-                                     posting.documentId
-                                 ).string()
-                              << " | Positions:";
+                              << documentPaths.at(result.documentId).string()
+                              << " | Matched terms: "
+                              << result.matchedTerms.size()
+                              << " | Terms:";
 
-                    for (std::size_t position : posting.positions)
+                    for (const std::string& term : result.matchedTerms)
                     {
-                        std::cout << ' ' << position;
+                        std::cout << ' ' << term;
                     }
 
                     std::cout << '\n';
