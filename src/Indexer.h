@@ -10,7 +10,7 @@ class Indexer
 public:
     Indexer(const DataLoader& dataLoader, const TextProcessor& textProcessor, InvertedIndex& invertedIndex);
 
-    std::vector<std::filesystem::path> build();
+    std::vector<std::filesystem::path> build(int threadCount);
 
 private:
     const DataLoader& dataLoader_;

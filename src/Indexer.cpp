@@ -1,4 +1,5 @@
 #include "Indexer.h"
+#include "ThreadPool.h"
 
 Indexer::Indexer(
     const DataLoader& dataLoader,
@@ -9,22 +10,29 @@ Indexer::Indexer(
 }
 
 
-std::vector<std::filesystem::path> Indexer::build()
+std::vector<std::filesystem::path> Indexer::build(int threadCount)
 {
-    const std::vector<std::filesystem::path> documentPaths = dataLoader_.getDocumentPaths();
+    const std::vector<std::filesystem::path> documentPaths =
+        dataLoader_.getDocumentPaths();
 
-    for (DocumentId documentId = 0; documentId < documentPaths.size(); ++documentId)
+    ThreadPool pool(
+        threadCount,
+        dataLoader_,
+        textProcessor_,
+        invertedIndex_
+    );
+
+    for (DocumentId documentId = 0;
+         documentId < documentPaths.size();
+         ++documentId)
     {
-        const std::optional<Document> document = dataLoader_.loadDocument(documentId, documentPaths[documentId]);
-
-        if (!document)
-        {
-            continue;
-        }
-
-        const std::vector<std::string> tokens = textProcessor_.tokenize(document->text);
-        invertedIndex_.addDocument(document->id, tokens);
+        pool.addTask({
+            documentId,
+            documentPaths[documentId]
+        });
     }
+
+    pool.wait();
 
     return documentPaths;
 }
