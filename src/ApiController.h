@@ -3,18 +3,19 @@
 
 #include <crow.h>
 
-#include "SearchService.h"
+#include "IndexService.h"
 
 class ApiController
 {
 public:
-    explicit ApiController(const SearchService& searchService);
+    explicit ApiController(IndexService& indexService);
 
     crow::response health() const;
     crow::response search(const crow::request& request) const;
+    crow::response index(const crow::request& request) const;
 
 private:
-    const SearchService& searchService_;
+    IndexService& indexService_;
 };
 
 

@@ -4,11 +4,11 @@
 
 #include "DataLoader.h"
 #include "TextProcessor.h"
-#include "InvertedIndex.h"
-#include "Indexer.h"
-#include "SearchService.h"
 #include "ApiController.h"
 #include "Server.h"
+#include <stdexcept>
+#include "IndexService.h"
+
 
 int main()
 {
@@ -16,47 +16,32 @@ int main()
     {
         DataLoader dataLoader("data/test");
         TextProcessor textProcessor;
-        InvertedIndex invertedIndex;
 
-        Indexer indexer(
+        IndexService indexService(
             dataLoader,
-            textProcessor,
-            invertedIndex
-        );
-
-        const int indexingThreadCount = 4;
-        const int serverThreadCount = 4;
-        const int port = 8080;
-
-        const auto start = std::chrono::steady_clock::now();
-
-        const auto documentPaths =
-            indexer.build(indexingThreadCount);
-
-        const auto finish = std::chrono::steady_clock::now();
-
-        const double timeMs =
-            std::chrono::duration<double, std::milli>(
-                finish - start
-            ).count();
-
-        std::cout << "Index built.\n"
-            << "Indexing threads: "
-            << indexingThreadCount << '\n'
-            << "Files found: "
-            << documentPaths.size() << '\n'
-            << "Build time: "
-            << timeMs << " ms\n\n";
-
-        SearchService searchService(
-            invertedIndex,
             textProcessor
         );
 
-        ApiController apiController(searchService);
+        const auto statistics = indexService.rebuild(4);
+
+        if (!statistics)
+        {
+            throw std::runtime_error(
+                "Initial index build could not start."
+            );
+        }
+
+        std::cout
+            << "Index built.\n"
+            << "Documents indexed: "
+            << statistics->documents << '\n'
+            << "Build time: "
+            << statistics->timeMs << " ms\n";
+
+        ApiController apiController(indexService);
         Server server(apiController);
 
-        server.run(port, serverThreadCount);
+        server.run(8080, 4);
     }
     catch (const std::exception& error)
     {

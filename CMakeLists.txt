@@ -32,6 +32,7 @@ add_executable(search_server
         src/TextProcessor.cpp
         src/InvertedIndex.cpp
         src/Indexer.cpp
+        src/IndexService.cpp
         src/SearchService.cpp
         src/ThreadPool.cpp
         src/ApiController.cpp
@@ -50,4 +51,5 @@ if(WIN32)
             ws2_32
             mswsock
     )
+
 endif()

@@ -16,6 +16,8 @@ void InvertedIndex::addDocument(DocumentId documentId, const std::vector<std::st
     {
         index_[term].push_back(Posting{documentId, std::move(positions)});
     }
+
+    ++documentsCount_;
 }
 
 
@@ -29,4 +31,10 @@ std::vector<Posting> InvertedIndex::getPostings(const std::string& term) const
     }
 
     return iterator->second;
+}
+
+
+std::size_t InvertedIndex::getDocumentsCount() const
+{
+    return documentsCount_;
 }

@@ -17,6 +17,14 @@ Server::Server(const ApiController& apiController)
             return apiController_.search(request);
         }
     );
+
+    CROW_ROUTE(app_, "/api/index")
+    .methods(crow::HTTPMethod::POST)(
+        [this](const crow::request& request)
+        {
+            return apiController_.index(request);
+        }
+    );
 }
 
 void Server::run(int port, int threadCount)

@@ -3,9 +3,10 @@
 #include <exception>
 #include <string>
 #include <utility>
+#include <nlohmann/json.hpp>
 
-ApiController::ApiController(const SearchService& searchService)
-    : searchService_(searchService)
+ApiController::ApiController(IndexService& indexService)
+    : indexService_(indexService)
 {
 }
 
@@ -17,15 +18,12 @@ crow::response ApiController::health() const
     return crow::response(body);
 }
 
-crow::response ApiController::search(
-    const crow::request& request
-) const
+crow::response ApiController::search(const crow::request& request) const
 {
     // Отримуємо параметр q з адреси запиту.
     const char* queryParameter = request.url_params.get("q");
 
-    if (queryParameter == nullptr
-        || std::string(queryParameter).empty())
+    if (queryParameter == nullptr || std::string(queryParameter).empty())
     {
         crow::json::wvalue body;
         body["error"] = "Query parameter 'q' is required.";
@@ -51,7 +49,7 @@ crow::response ApiController::search(
 
     try
     {
-        const auto results = searchService_.search(query);
+        const auto results = indexService_.search(query);
 
         crow::json::wvalue body;
         body["query"] = query;
@@ -83,5 +81,80 @@ crow::response ApiController::search(
         response.code = 500;
 
         return response;
+    }
+}
+
+
+crow::response ApiController::index(const crow::request& request) const
+{
+    // Допоміжна функція для JSON-відповідей із помилкою.
+    const auto errorResponse = [](
+        int status,
+        const std::string& message
+    ) -> crow::response
+    {
+        crow::json::wvalue body;
+        body["error"] = message;
+
+        crow::response response(body);
+        response.code = status;
+
+        return response;
+    };
+
+    try
+    {
+        const auto input = nlohmann::json::parse(
+            request.body,
+            nullptr,
+            false
+        );
+
+        if (!input.is_object()
+            || !input.contains("threads")
+            || !input["threads"].is_number_integer())
+        {
+            return errorResponse(
+                400,
+                "JSON field 'threads' must be an integer."
+            );
+        }
+
+        // Перевіряємо межі перед перетворенням на int.
+        if (input["threads"] < 1 || input["threads"] > 128)
+        {
+            return errorResponse(
+                400,
+                "Thread count must be between 1 and 128."
+            );
+        }
+
+        const int threadCount = input["threads"].get<int>();
+
+        const auto statistics = indexService_.rebuild(threadCount);
+
+        if (!statistics)
+        {
+            return errorResponse(
+                409,
+                "Index rebuild is already in progress."
+            );
+        }
+
+        crow::json::wvalue body;
+        body["status"] = "ok";
+        body["documents_indexed"] = statistics->documents;
+        body["time_ms"] = statistics->timeMs;
+
+        return crow::response(body);
+    }
+    catch (const std::exception& error)
+    {
+        CROW_LOG_ERROR << "Index rebuild failed: " << error.what();
+
+        return errorResponse(
+            500,
+            "Index rebuild failed. Previous index is unchanged."
+        );
     }
 }
