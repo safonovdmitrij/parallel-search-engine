@@ -1,13 +1,14 @@
 #include <chrono>
 #include <exception>
 #include <iostream>
-#include <string>
 
 #include "DataLoader.h"
 #include "TextProcessor.h"
 #include "InvertedIndex.h"
 #include "Indexer.h"
 #include "SearchService.h"
+#include "ApiController.h"
+#include "Server.h"
 
 int main()
 {
@@ -23,11 +24,14 @@ int main()
             invertedIndex
         );
 
-        const int threadCount = 4;
+        const int indexingThreadCount = 4;
+        const int serverThreadCount = 4;
+        const int port = 8080;
 
         const auto start = std::chrono::steady_clock::now();
 
-        const auto documentPaths = indexer.build(threadCount);
+        const auto documentPaths =
+            indexer.build(indexingThreadCount);
 
         const auto finish = std::chrono::steady_clock::now();
 
@@ -37,71 +41,26 @@ int main()
             ).count();
 
         std::cout << "Index built.\n"
-                  << "Threads: " << threadCount << '\n'
-                  << "Files found: " << documentPaths.size() << '\n'
-                  << "Build time: " << timeMs << " ms\n\n";
-
-        for (DocumentId documentId = 0;
-             documentId < documentPaths.size();
-             ++documentId)
-        {
-            std::cout << "Document ID: " << documentId
-                      << " | Path: "
-                      << documentPaths[documentId].string()
-                      << '\n';
-        }
+            << "Indexing threads: "
+            << indexingThreadCount << '\n'
+            << "Files found: "
+            << documentPaths.size() << '\n'
+            << "Build time: "
+            << timeMs << " ms\n\n";
 
         SearchService searchService(
             invertedIndex,
             textProcessor
         );
 
-        std::cout << "\nEnter a search query." << "\nEnter 'exit' to quit.\n";
+        ApiController apiController(searchService);
+        Server server(apiController);
 
-
-        std::string query;
-
-        while (std::cout << "\nQuery: "
-               && std::getline(std::cin, query))
-        {
-            if (query == "exit")
-            {
-                break;
-            }
-
-            try
-            {
-                const auto results = searchService.search(query);
-
-                std::cout << "Documents found: " << results.size() << '\n';
-
-                for (const SearchResult& result : results)
-                {
-                    std::cout << "Document ID: " << result.documentId
-                              << " | Path: "
-                              << documentPaths.at(result.documentId).string()
-                              << " | Matched terms: "
-                              << result.matchedTerms.size()
-                              << " | Terms:";
-
-                    for (const std::string& term : result.matchedTerms)
-                    {
-                        std::cout << ' ' << term;
-                    }
-
-                    std::cout << '\n';
-                }
-            }
-            catch (const std::exception& exception)
-            {
-                std::cerr << "Search error: "
-                          << exception.what() << '\n';
-            }
-        }
+        server.run(port, serverThreadCount);
     }
-    catch (const std::exception& exception)
+    catch (const std::exception& error)
     {
-        std::cerr << "Error: " << exception.what() << '\n';
+        std::cerr << "Error: " << error.what() << '\n';
         return 1;
     }
 
