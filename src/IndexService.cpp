@@ -2,6 +2,8 @@
 
 #include <chrono>
 #include <stdexcept>
+#include <fstream>
+#include <utility>
 
 IndexService::IndexService(
     const DataLoader& dataLoader,
@@ -77,5 +79,64 @@ std::vector<SearchResult> IndexService::search(const std::string& query) const
         textProcessor_
     );
 
-    return searchService.search(query);
+    auto results = searchService.search(query);
+
+    for (auto& result : results)
+    {
+        std::ifstream file(current_->documentPaths.at(result.documentId),std::ios::binary);
+
+        if (!file)
+        {
+            continue;
+        }
+
+        // Короткий фрагмент із початку документа.
+        std::string text(240, '\0');
+
+        file.read(
+            text.data(),
+            static_cast<std::streamsize>(text.size())
+        );
+
+        text.resize(
+            static_cast<std::size_t>(file.gcount())
+        );
+
+        // Не залишаємо обрізаний UTF-8 символ наприкінці.
+        if (text.size() == 240)
+        {
+            while (!text.empty()
+                && (static_cast<unsigned char>(text.back()) & 0xC0) == 0x80)
+            {
+                text.pop_back();
+            }
+
+            if (!text.empty()
+                && static_cast<unsigned char>(text.back()) >= 0xC0)
+            {
+                text.pop_back();
+            }
+        }
+
+        for (char& character : text)
+        {
+            if (character == '\n'
+                || character == '\r'
+                || character == '\t')
+            {
+                character = ' ';
+            }
+        }
+
+        result.snippet = std::move(text);
+    }
+
+    return results;
+}
+
+IndexStatistics IndexService::getStatistics() const
+{
+    std::shared_lock<std::shared_mutex> lock(stateMutex_);
+
+    return current_->statistics;
 }

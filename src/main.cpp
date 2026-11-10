@@ -8,6 +8,7 @@
 #include "Server.h"
 #include <stdexcept>
 #include "IndexService.h"
+#include "OllamaClient.h"
 
 
 int main()
@@ -38,7 +39,16 @@ int main()
             << "Build time: "
             << statistics->timeMs << " ms\n";
 
-        ApiController apiController(indexService);
+        OllamaClient ollamaClient(
+    "http://127.0.0.1:11434",
+    "gemma3:1b"
+        );
+
+        ApiController apiController(
+            indexService,
+            ollamaClient
+        );
+
         Server server(apiController);
 
         server.run(8080, 4);

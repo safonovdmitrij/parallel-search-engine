@@ -11,6 +11,7 @@ struct SearchResult
 {
     DocumentId documentId;
     std::vector<std::string> matchedTerms;
+    std::string snippet;
 };
 
 class SearchService
@@ -21,9 +22,7 @@ public:
         const TextProcessor& textProcessor
     );
 
-    std::vector<SearchResult> search(
-        const std::string& query
-    ) const;
+    std::vector<SearchResult> search(const std::string& query) const;
 
 private:
     const InvertedIndex& invertedIndex_;

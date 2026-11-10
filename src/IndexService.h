@@ -26,6 +26,7 @@ public:
 
     std::optional<IndexStatistics> rebuild(int threadCount);
     std::vector<SearchResult> search(const std::string& query) const;
+    IndexStatistics getStatistics() const;
 
 private:
     struct IndexState

@@ -3,85 +3,233 @@
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
 
-#include <iostream>
-#include <string>
+#include <memory>
+#include <stdexcept>
+#include <utility>
 
-std::size_t writeCallback(char* data, std::size_t size, std::size_t count, void* userData)
+namespace
 {
-    const std::size_t totalSize = size * count;
-
-    auto* responseBody = static_cast<std::string*>(userData);
-
-    responseBody->append(data, totalSize);
-
-    return totalSize;
-}
-
-
-std::string OllamaClient::expandQuery(const std::string& query)
-{
-    CURLcode result, initResult;
-    CURL* curl;
-    std::string requestBody, responseBody;
-
-    initResult = curl_global_init(CURL_GLOBAL_DEFAULT);
-    if(initResult != CURLE_OK)
+    struct CurlRuntime
     {
-        std::cerr << "Curl global initialization failed: " << curl_easy_strerror(initResult) << std::endl;
-        return "";
-    }
+        CurlRuntime()
+        {
+            if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
+            {
+                throw std::runtime_error(
+                    "CURL initialization failed."
+                );
+            }
+        }
 
-    curl = curl_easy_init();
-    if(curl == nullptr)
-    {
-        std::cerr << "Eazy handle initialization failed: " << std::endl;
-        curl_global_cleanup();
-        return "";
-    }
-
-    curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:11434/api/generate");
-
-    const std::string expansionPrompt =
-        "Expand the following search query with relevant synonyms and related terms. "
-        "Return only the expanded query without explanations.\n"
-        "Query: " + query;
-
-
-    const nlohmann::json requestJson = {
-        {"model", "gemma3:1b"},
-        {"prompt", expansionPrompt},
-        {"stream", false}
+        ~CurlRuntime()
+        {
+            curl_global_cleanup();
+        }
     };
 
-    requestBody = requestJson.dump();
-
-    curl_slist* headers = nullptr;
-
-    headers = curl_slist_append(headers, "Content-Type: application/json");
-
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, requestBody.c_str());
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseBody);
-
-    result = curl_easy_perform(curl);
-    if(result != CURLE_OK)
+    std::size_t writeBody(
+        char* data,
+        std::size_t size,
+        std::size_t count,
+        void* destination
+    ) noexcept
     {
-        std::cerr << "Curl perform failed: " << curl_easy_strerror(result) << std::endl;
+        const std::size_t bytes = size * count;
 
-        curl_slist_free_all(headers);
-        curl_easy_cleanup(curl);
-        curl_global_cleanup();
+        auto& body = *static_cast<std::string*>(destination);
 
-        return "";
+        // Обмежуємо відповідь одним мегабайтом.
+        if (bytes > 1024 * 1024 - body.size())
+        {
+            return 0;
+        }
+
+        try
+        {
+            body.append(data, bytes);
+        }
+        catch (...)
+        {
+            return 0;
+        }
+
+        return bytes;
+    }
+}
+
+OllamaClient::OllamaClient(
+    std::string baseUrl,
+    std::string model
+)
+    : baseUrl_(std::move(baseUrl)),
+      model_(std::move(model))
+{
+    // Ініціалізація виконується один раз.
+    static CurlRuntime runtime;
+}
+
+std::string OllamaClient::request(
+    const std::string& path,
+    const std::string& body,
+    long timeout
+) const
+{
+    std::unique_ptr<CURL, decltype(&curl_easy_cleanup)> handle(
+        curl_easy_init(),
+        curl_easy_cleanup
+    );
+
+    if (!handle)
+    {
+        throw std::runtime_error(
+            "CURL handle creation failed."
+        );
     }
 
-    nlohmann::json ollamaResponse = nlohmann::json::parse(responseBody);
-    std::string modelResponse = ollamaResponse.at("response").get<std::string>();
+    std::unique_ptr<
+        curl_slist,
+        decltype(&curl_slist_free_all)
+    > headers(
+        curl_slist_append(
+            nullptr,
+            "Content-Type: application/json"
+        ),
+        curl_slist_free_all
+    );
 
-    curl_slist_free_all(headers);
-    curl_easy_cleanup(curl);
-    curl_global_cleanup();
+    if (!headers)
+    {
+        throw std::runtime_error(
+            "CURL headers creation failed."
+        );
+    }
 
-    return modelResponse;
+    const std::string url = baseUrl_ + path;
+    std::string response;
+
+    curl_easy_setopt(
+        handle.get(), CURLOPT_URL, url.c_str()
+    );
+
+    curl_easy_setopt(
+        handle.get(), CURLOPT_HTTPHEADER, headers.get()
+    );
+
+    curl_easy_setopt(
+        handle.get(), CURLOPT_CONNECTTIMEOUT, 2L
+    );
+
+    curl_easy_setopt(
+        handle.get(), CURLOPT_TIMEOUT, timeout
+    );
+
+    curl_easy_setopt(
+        handle.get(), CURLOPT_NOSIGNAL, 1L
+    );
+
+    curl_easy_setopt(
+        handle.get(), CURLOPT_WRITEFUNCTION, writeBody
+    );
+
+    curl_easy_setopt(
+        handle.get(), CURLOPT_WRITEDATA, &response
+    );
+
+    if (!body.empty())
+    {
+        curl_easy_setopt(
+            handle.get(),
+            CURLOPT_POSTFIELDS,
+            body.c_str()
+        );
+    }
+
+    const CURLcode result = curl_easy_perform(handle.get());
+
+    if (result != CURLE_OK)
+    {
+        throw std::runtime_error(
+            curl_easy_strerror(result)
+        );
+    }
+
+    long status = 0;
+
+    curl_easy_getinfo(
+        handle.get(),
+        CURLINFO_RESPONSE_CODE,
+        &status
+    );
+
+    if (status != 200)
+    {
+        throw std::runtime_error(
+            "Ollama HTTP status: " + std::to_string(status)
+        );
+    }
+
+    return response;
+}
+
+bool OllamaClient::isAvailable() const
+{
+    try
+    {
+        const auto data = nlohmann::json::parse(
+            request("/api/tags", "", 2L)
+        );
+
+        for (const auto& item : data.at("models"))
+        {
+            if (item.value("name", "") == model_)
+            {
+                return true;
+            }
+        }
+    }
+    catch (const std::exception&)
+    {
+        return false;
+    }
+
+    return false;
+}
+
+std::string OllamaClient::expandQuery(const std::string& query) const
+{
+    const nlohmann::json input = {
+        {"model", model_},
+        {
+            "system",
+            "You expand search queries for a document search engine. "
+            "Return 3 to 8 relevant English synonyms or closely related "
+            "terms for the given query. "
+            "Return only the terms separated by spaces. "
+            "Do not acknowledge the request or provide explanations.\n"
+            "Example:\n"
+            "Input: computer\n"
+            "Output: computing processor hardware software PC"
+        },
+        {"prompt", "Expand this search query: " + query},
+        {"stream", false},
+        {
+            "options",
+            {
+                {"temperature", 0},
+                {"num_predict", 64}
+            }
+        }
+    };
+
+    const auto data = nlohmann::json::parse(request("/api/generate", input.dump(), 120L));
+
+    const std::string expanded = data.at("response").get<std::string>();
+
+    if (expanded.find_first_not_of(" \t\r\n") == std::string::npos)
+    {
+        throw std::runtime_error("Ollama returned an empty query.");
+    }
+
+    // Початкові слова також залишаються в пошуку.
+    return query + " " + expanded;
 }
