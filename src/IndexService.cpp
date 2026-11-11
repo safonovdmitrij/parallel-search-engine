@@ -81,7 +81,12 @@ std::vector<SearchResult> IndexService::search(const std::string& query) const
 
     for (auto& result : results)
     {
-        std::ifstream file(current_->documentPaths.at(result.documentId),std::ios::binary);
+        const std::filesystem::path& path = current_->documentPaths.at(result.documentId);
+
+        const std::u8string filename = path.filename().u8string();
+        result.filename.assign(filename.begin(), filename.end());
+
+        std::ifstream file(path, std::ios::binary);
 
         if (!file)
         {

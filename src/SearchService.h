@@ -12,6 +12,7 @@ struct SearchResult
     DocumentId documentId;
     std::vector<std::string> matchedTerms;
     std::string snippet;
+    std::string filename;
 };
 
 class SearchService

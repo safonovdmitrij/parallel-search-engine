@@ -65,6 +65,7 @@ namespace
         {
             items.push_back({
                 {"doc_id", std::to_string(result.documentId)},
+                {"filename", result.filename},
                 {"score", result.matchedTerms.size()},
                 {"matched_terms", result.matchedTerms},
                 {"snippet", result.snippet}

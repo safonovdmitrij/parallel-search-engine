@@ -185,7 +185,7 @@ crow::response ApiController::search(const crow::request& request) const
             crow::json::wvalue item;
 
             item["doc_id"] = std::to_string(result.documentId);
-
+            item["filename"] = result.filename;
             item["score"] = result.matchedTerms.size();
             item["matched_terms"] = result.matchedTerms;
             item["snippet"] = result.snippet;

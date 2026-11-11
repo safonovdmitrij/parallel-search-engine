@@ -16,7 +16,7 @@ int main()
 {
     try
     {
-        DataLoader dataLoader("data/test");
+        DataLoader dataLoader("data/raw");
         TextProcessor textProcessor;
 
         IndexService indexService(

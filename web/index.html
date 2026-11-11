@@ -325,7 +325,7 @@
             article.className = "result";
 
             const title = document.createElement("h3");
-            title.textContent = `Документ ${result.doc_id}`;
+            title.textContent = result.filename || `Документ ${result.doc_id}`;
 
             const metadata = document.createElement("p");
             metadata.className = "metadata";
