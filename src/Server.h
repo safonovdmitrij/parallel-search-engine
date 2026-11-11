@@ -4,16 +4,19 @@
 #include <crow.h>
 
 #include "ApiController.h"
+#include "WebSocketController.h"
 
 class Server
 {
 public:
-    explicit Server(const ApiController& apiController);
+    Server(const ApiController& apiController, WebSocketController& webSocketController);
+    ~Server();
 
     void run(int port, int threadCount);
 
 private:
     const ApiController& apiController_;
+    WebSocketController& webSocketController_;
     crow::SimpleApp app_;
 };
 

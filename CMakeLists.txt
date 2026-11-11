@@ -19,7 +19,7 @@ set(CROW_ENABLE_COMPRESSION OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
         Crow
         GIT_REPOSITORY https://github.com/CrowCpp/Crow.git
-        GIT_TAG v1.3.0
+        GIT_TAG v1.3.4
         GIT_SHALLOW TRUE
 )
 
@@ -37,6 +37,7 @@ add_executable(search_server
         src/ThreadPool.cpp
         src/ApiController.cpp
         src/Server.cpp
+        src/WebSocketController.cpp
 )
 
 target_link_libraries(search_server PRIVATE

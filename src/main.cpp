@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include "IndexService.h"
 #include "OllamaClient.h"
+#include "WebSocketController.h"
 
 
 int main()
@@ -49,7 +50,9 @@ int main()
             ollamaClient
         );
 
-        Server server(apiController);
+        WebSocketController webSocketController(indexService, ollamaClient);
+
+        Server server(apiController, webSocketController);
 
         server.run(8080, 4);
     }
