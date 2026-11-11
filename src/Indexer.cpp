@@ -12,8 +12,7 @@ Indexer::Indexer(
 
 std::vector<std::filesystem::path> Indexer::build(int threadCount)
 {
-    const std::vector<std::filesystem::path> documentPaths =
-        dataLoader_.getDocumentPaths();
+    const std::vector<std::filesystem::path> documentPaths = dataLoader_.getDocumentPaths();
 
     ThreadPool pool(
         threadCount,
@@ -22,14 +21,9 @@ std::vector<std::filesystem::path> Indexer::build(int threadCount)
         invertedIndex_
     );
 
-    for (DocumentId documentId = 0;
-         documentId < documentPaths.size();
-         ++documentId)
+    for (DocumentId documentId = 0; documentId < documentPaths.size(); ++documentId)
     {
-        pool.addTask({
-            documentId,
-            documentPaths[documentId]
-        });
+        pool.addTask({documentId,documentPaths[documentId]});
     }
 
     pool.wait();

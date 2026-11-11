@@ -175,9 +175,7 @@ bool OllamaClient::isAvailable() const
 {
     try
     {
-        const auto data = nlohmann::json::parse(
-            request("/api/tags", "", 2L)
-        );
+        const auto data = nlohmann::json::parse(request("/api/tags", "", 2L));
 
         for (const auto& item : data.at("models"))
         {

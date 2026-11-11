@@ -15,9 +15,7 @@ IndexService::IndexService(
 {
 }
 
-std::optional<IndexStatistics> IndexService::rebuild(
-    int threadCount
-)
+std::optional<IndexStatistics> IndexService::rebuild(int threadCount)
 {
     if (threadCount < 1 || threadCount > 128)
     {
@@ -93,26 +91,18 @@ std::vector<SearchResult> IndexService::search(const std::string& query) const
         // Короткий фрагмент із початку документа.
         std::string text(240, '\0');
 
-        file.read(
-            text.data(),
-            static_cast<std::streamsize>(text.size())
-        );
-
-        text.resize(
-            static_cast<std::size_t>(file.gcount())
-        );
+        file.read(text.data(),static_cast<std::streamsize>(text.size()));
+        text.resize(static_cast<std::size_t>(file.gcount()));
 
         // Не залишаємо обрізаний UTF-8 символ наприкінці.
         if (text.size() == 240)
         {
-            while (!text.empty()
-                && (static_cast<unsigned char>(text.back()) & 0xC0) == 0x80)
+            while (!text.empty() && (static_cast<unsigned char>(text.back()) & 0xC0) == 0x80)
             {
                 text.pop_back();
             }
 
-            if (!text.empty()
-                && static_cast<unsigned char>(text.back()) >= 0xC0)
+            if (!text.empty() && static_cast<unsigned char>(text.back()) >= 0xC0)
             {
                 text.pop_back();
             }
@@ -120,9 +110,7 @@ std::vector<SearchResult> IndexService::search(const std::string& query) const
 
         for (char& character : text)
         {
-            if (character == '\n'
-                || character == '\r'
-                || character == '\t')
+            if (character == '\n' || character == '\r' || character == '\t')
             {
                 character = ' ';
             }

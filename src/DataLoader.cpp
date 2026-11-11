@@ -14,8 +14,7 @@ std::vector<std::filesystem::path> DataLoader::getDocumentPaths() const
 {
     std::vector<std::filesystem::path> documentPaths;
 
-    for(const std::filesystem::directory_entry& entry :
-        std::filesystem::recursive_directory_iterator(dataDirectory_))
+    for(const std::filesystem::directory_entry& entry : std::filesystem::recursive_directory_iterator(dataDirectory_))
     {
         if(entry.is_regular_file() && entry.path().extension() == ".txt")
         {

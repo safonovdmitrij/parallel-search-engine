@@ -129,16 +129,14 @@ void ThreadPool::worker()
 
 void ThreadPool::processDocument(const Task& task)
 {
-    const std::optional<Document> document =
-        dataLoader_.loadDocument(task.documentId, task.path);
+    const std::optional<Document> document = dataLoader_.loadDocument(task.documentId, task.path);
 
     if (!document)
     {
         return;
     }
 
-    const std::vector<std::string> tokens =
-        textProcessor_.tokenize(document->text);
+    const std::vector<std::string> tokens = textProcessor_.tokenize(document->text);
 
     // Читання і токенізація виконуються паралельно.
     // Зміну спільного індексу захищаємо окремим mutex.

@@ -6,6 +6,7 @@
 #include <exception>
 #include <string>
 #include <utility>
+#include <optional>
 
 namespace
 {
@@ -18,6 +19,84 @@ namespace
         response.code = status;
 
         return response;
+    }
+
+    struct SearchParameters
+    {
+        std::string query;
+        std::string mode = "keyword";
+    };
+
+    std::optional<std::string> parseSearchRequest(const crow::request& request,SearchParameters& parameters)
+    {
+        if (request.method == crow::HTTPMethod::POST)
+        {
+            const auto input = nlohmann::json::parse(request.body, nullptr, false);
+
+            if (!input.is_object() || !input.contains("query") || !input["query"].is_string())
+            {
+                return "JSON field 'query' must be a string.";
+            }
+
+            parameters.query = input["query"].get<std::string>();
+
+            if (input.contains("mode"))
+            {
+                if (!input["mode"].is_string())
+                {
+                    return "Field 'mode' must be a string.";
+                }
+
+                parameters.mode = input["mode"].get<std::string>();
+            }
+        }
+        else
+        {
+            const char* query = request.url_params.get("q");
+
+            if (query == nullptr)
+            {
+                return "Query parameter 'q' is required.";
+            }
+
+            parameters.query = query;
+
+            if (const char* mode = request.url_params.get("mode"))
+            {
+                parameters.mode = mode;
+            }
+        }
+
+        if (parameters.query.size() > 1000 || parameters.query.find_first_not_of(" \t\r\n") == std::string::npos)
+        {
+            return "Query must contain text and not exceed 1000 bytes.";
+        }
+
+        if (parameters.mode != "keyword" && parameters.mode != "llm")
+        {
+            return "Mode must be 'keyword' or 'llm'.";
+        }
+
+        return std::nullopt;
+    }
+
+    std::optional<std::string> parseIndexRequest(const crow::request& request,int& threadCount)
+    {
+        const auto input = nlohmann::json::parse(request.body, nullptr, false);
+
+        if (!input.is_object() || !input.contains("threads") || !input["threads"].is_number_integer())
+        {
+            return "JSON field 'threads' must be an integer.";
+        }
+
+        if (input["threads"] < 1 || input["threads"] > 128)
+        {
+            return "Thread count must be between 1 and 128.";
+        }
+
+        threadCount = input["threads"].get<int>();
+
+        return std::nullopt;
     }
 }
 
@@ -53,75 +132,15 @@ crow::response ApiController::search(const crow::request& request) const
 {
     try
     {
-        std::string query;
-        std::string mode = "keyword";
+        SearchParameters parameters;
 
-        if (request.method == crow::HTTPMethod::POST)
+        if (const auto error = parseSearchRequest(request, parameters))
         {
-            const auto input = nlohmann::json::parse(
-                request.body,
-                nullptr,
-                false
-            );
-
-            if (!input.is_object() || !input.contains("query") || !input["query"].is_string())
-            {
-                return errorResponse(
-                    400,
-                    "JSON field 'query' must be a string."
-                );
-            }
-
-            query = input["query"].get<std::string>();
-
-            if (input.contains("mode"))
-            {
-                if (!input["mode"].is_string())
-                {
-                    return errorResponse(
-                        400,
-                        "Field 'mode' must be a string."
-                    );
-                }
-
-                mode = input["mode"].get<std::string>();
-            }
-        }
-        else
-        {
-            const char* value = request.url_params.get("q");
-
-            if (value == nullptr)
-            {
-                return errorResponse(
-                    400,
-                    "Query parameter 'q' is required."
-                );
-            }
-
-            query = value;
-
-            if (const char* valueMode = request.url_params.get("mode"))
-            {
-                mode = valueMode;
-            }
+            return errorResponse(400, *error);
         }
 
-        if (query.size() > 1000 || query.find_first_not_of(" \t\r\n") == std::string::npos)
-        {
-            return errorResponse(
-                400,
-                "Query must contain text and not exceed 1000 bytes."
-            );
-        }
-
-        if (mode != "keyword" && mode != "llm")
-        {
-            return errorResponse(
-                400,
-                "Mode must be 'keyword' or 'llm'."
-            );
-        }
+        const std::string& query = parameters.query;
+        const std::string& mode = parameters.mode;
 
         const auto start = std::chrono::steady_clock::now();
 
@@ -146,7 +165,7 @@ crow::response ApiController::search(const crow::request& request) const
             }
         }
 
-        const auto results = indexService_.search(effectiveQuery);
+        const std::vector<SearchResult> results = indexService_.search(effectiveQuery);
 
         const double timeMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
 
@@ -191,29 +210,12 @@ crow::response ApiController::index(const crow::request& request) const
 {
     try
     {
-        const auto input = nlohmann::json::parse(
-            request.body,
-            nullptr,
-            false
-        );
+        int threadCount = 0;
 
-        if (!input.is_object() || !input.contains("threads") || !input["threads"].is_number_integer())
+        if (const auto error = parseIndexRequest(request, threadCount))
         {
-            return errorResponse(
-                400,
-                "JSON field 'threads' must be an integer."
-            );
+            return errorResponse(400, *error);
         }
-
-        if (input["threads"] < 1 || input["threads"] > 128)
-        {
-            return errorResponse(
-                400,
-                "Thread count must be between 1 and 128."
-            );
-        }
-
-        const int threadCount = input["threads"].get<int>();
 
         const auto statistics = indexService_.rebuild(threadCount);
 

@@ -14,12 +14,9 @@ SearchService::SearchService(
 {
 }
 
-std::vector<SearchResult> SearchService::search(
-    const std::string& query
-) const
+std::vector<SearchResult> SearchService::search(const std::string& query) const
 {
-    const std::vector<std::string> tokens =
-        textProcessor_.tokenize(query);
+    const std::vector<std::string> tokens = textProcessor_.tokenize(query);
 
     std::unordered_set<std::string> processedTerms;
 
@@ -33,8 +30,7 @@ std::vector<SearchResult> SearchService::search(
             continue;
         }
 
-        const std::vector<Posting> postings =
-            invertedIndex_.getPostings(term);
+        const std::vector<Posting> postings = invertedIndex_.getPostings(term);
 
         for (const Posting& posting : postings)
         {
@@ -62,8 +58,7 @@ std::vector<SearchResult> SearchService::search(
         {
             if (left.matchedTerms.size() != right.matchedTerms.size())
             {
-                return left.matchedTerms.size()
-                       > right.matchedTerms.size();
+                return left.matchedTerms.size() > right.matchedTerms.size();
             }
 
             return left.documentId < right.documentId;
