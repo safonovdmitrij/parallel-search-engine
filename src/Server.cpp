@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <stdexcept>
+#include <fstream>
+#include <sstream>
 
 Server::Server(const ApiController& apiController, WebSocketController& webSocketController)
     : apiController_(apiController),
@@ -44,6 +46,24 @@ Server::Server(const ApiController& apiController, WebSocketController& webSocke
         {
             webSocketController_.onClose(connection);
         });
+
+    CROW_ROUTE(app_, "/")([]()
+    {
+        std::ifstream file("web/index.html");
+
+        if (!file)
+        {
+            return crow::response(500, "Could not open web/index.html.");
+        }
+
+        std::ostringstream content;
+        content << file.rdbuf();
+
+        crow::response response(content.str());
+        response.set_header("Content-Type", "text/html; charset=utf-8");
+
+        return response;
+    });
 }
 
 Server::~Server()

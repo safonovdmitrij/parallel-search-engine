@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Пошукова система</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #050905;
+            color: #b6ffc5;
+            font-family: "Consolas", "Courier New", monospace;
+        }
+
+        /* Ледь помітна сітка на фоні. */
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            background-image:
+                    linear-gradient(#00ff4108 1px, transparent 1px),
+                    linear-gradient(90deg, #00ff4108 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+
+        main {
+            max-width: 900px;
+            margin: 60px auto;
+            padding: 0 20px;
+        }
+
+        h1 {
+            margin-bottom: 8px;
+            color: #39ff75;
+            text-shadow: 0 0 20px #00ff4140;
+        }
+
+        h1::before {
+            content: "> ";
+        }
+
+        h2, h3 {
+            color: #39ff75;
+        }
+
+        .description {
+            color: #88ba94;
+            margin-bottom: 28px;
+            line-height: 1.6;
+        }
+
+        .panel, .result {
+            background: #09120c;
+            border: 1px solid #245c35;
+            border-radius: 6px;
+            padding: 24px;
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #b6ffc5;
+            font-weight: bold;
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 12px;
+            font: inherit;
+            border-radius: 4px;
+            border: 1px solid #367e49;
+        }
+
+        input, select {
+            margin-bottom: 18px;
+            background: #040a06;
+            color: #b6ffc5;
+            caret-color: #39ff75;
+            color-scheme: dark;
+        }
+
+        input::placeholder {
+            color: #72937a;
+        }
+
+        input:focus-visible, select:focus-visible, button:focus-visible {
+            outline: 2px solid #39ff75;
+            outline-offset: 3px;
+        }
+
+        button {
+            background: #39ff75;
+            color: #031007;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.15s, box-shadow 0.15s;
+        }
+
+        button:hover:not(:disabled) {
+            background: #8affad;
+            box-shadow: 0 0 20px #39ff7530;
+        }
+
+        button:disabled {
+            background: #193f25;
+            color: #9ec9a9;
+            cursor: wait;
+        }
+
+        #status {
+            min-height: 24px;
+            margin: 18px 0;
+            color: #b6ffc5;
+            line-height: 1.6;
+        }
+
+        #status.error {
+            color: #ffb4a6;
+        }
+
+        #stages {
+            padding-left: 24px;
+        }
+
+        #stages li {
+            padding: 6px 0;
+            color: #88a88f;
+        }
+
+        #stages li.active {
+            color: #d1ffdc;
+            font-weight: bold;
+            text-shadow: 0 0 10px #39ff7540;
+        }
+
+        #stages li.complete {
+            color: #39ff75;
+        }
+
+        #stages li.complete::after {
+            content: " [OK]";
+            font-weight: bold;
+        }
+
+        #expanded {
+            color: #9cefb1;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+
+        .result {
+            border-left: 3px solid #39ff75;
+        }
+
+        .result h3 {
+            margin-top: 0;
+        }
+
+        .metadata {
+            color: #8fbc9a;
+            font-size: 14px;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+
+        .snippet {
+            color: #c0d9c6;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        ::selection {
+            background: #39ff75;
+            color: #031007;
+        }
+
+        summary {
+            color: #39ff75;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        summary:focus-visible {
+            outline: 2px solid #39ff75;
+            outline-offset: 4px;
+        }
+
+        #index-form {
+            margin-top: 20px;
+        }
+
+        #index-status {
+            margin-bottom: 0;
+            line-height: 1.6;
+            color: #b6ffc5;
+        }
+
+        #index-status.error {
+            color: #ffb4a6;
+        }
+
+        @media (max-width: 600px) {
+            main {
+                margin: 28px auto;
+                padding: 0 12px;
+            }
+
+            h1 {
+                font-size: 26px;
+            }
+
+            .panel, .result {
+                padding: 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<main>
+    <h1>Пошукова система</h1>
+    <p class="description">
+        Пошук у документах за ключовими словами та з розширенням запиту через Ollama.
+    </p>
+
+    <details class="panel">
+        <summary>Керування індексом</summary>
+
+        <form id="index-form">
+            <p class="description">
+                Повторно зчитати документи з каталогу сервера та оновити індекс.
+            </p>
+
+            <label for="threads">Кількість потоків індексації</label>
+            <input id="threads" type="number" min="1" max="128" step="1" value="4" required>
+
+            <button id="index-button" type="submit">Перебудувати індекс</button>
+        </form>
+
+        <p id="index-status" role="status" aria-live="polite"></p>
+    </details>
+
+    <form id="search-form" class="panel">
+        <label for="query">Пошуковий запит</label>
+        <input id="query" type="text" placeholder="Наприклад: computer" required>
+
+        <label for="mode">Режим пошуку</label>
+        <select id="mode">
+            <option value="keyword">За ключовими словами</option>
+            <option value="llm">Із розширенням через Ollama</option>
+        </select>
+
+        <button id="search-button" type="submit">Знайти</button>
+    </form>
+
+    <section id="progress" class="panel" hidden>
+        <h2>Етапи пошуку</h2>
+
+        <ol id="stages">
+            <li id="expansion-stage">Розширення запиту</li>
+            <li id="search-stage">Пошук документів</li>
+            <li id="done-stage">Завершення</li>
+        </ol>
+
+        <p id="expanded"></p>
+    </section>
+
+    <p id="status" role="status" aria-live="polite"></p>
+    <section id="results" aria-label="Результати пошуку"></section>
+</main>
+
+<script>
+    const form = document.getElementById("search-form");
+    const queryInput = document.getElementById("query");
+    const modeInput = document.getElementById("mode");
+    const searchButton = document.getElementById("search-button");
+
+    const progress = document.getElementById("progress");
+    const expanded = document.getElementById("expanded");
+    const status = document.getElementById("status");
+    const resultsContainer = document.getElementById("results");
+
+    const expansionStage = document.getElementById("expansion-stage");
+    const searchStage = document.getElementById("search-stage");
+    const doneStage = document.getElementById("done-stage");
+
+    function setStatus(message, isError = false) {
+        status.textContent = message;
+        status.className = isError ? "error" : "";
+    }
+
+    function resetView(mode) {
+        resultsContainer.replaceChildren();
+        expanded.textContent = "";
+
+        progress.hidden = false;
+
+        expansionStage.className = "";
+        searchStage.className = "";
+        doneStage.className = "";
+
+        expansionStage.textContent = mode === "llm"
+            ? "Розширення запиту"
+            : "Розширення запиту не використовується";
+
+        setStatus("Виконується пошук...");
+    }
+
+    function showResults(results, timeMs) {
+        resultsContainer.replaceChildren();
+
+        for (const result of results) {
+            const article = document.createElement("article");
+            article.className = "result";
+
+            const title = document.createElement("h3");
+            title.textContent = `Документ ${result.doc_id}`;
+
+            const metadata = document.createElement("p");
+            metadata.className = "metadata";
+            metadata.textContent = `Оцінка: ${result.score}. Знайдені терміни: ${(result.matched_terms ?? []).join(", ")}`;
+
+            const snippet = document.createElement("p");
+            snippet.className = "snippet";
+            snippet.textContent = result.snippet || "Фрагмент документа недоступний.";
+
+            article.append(title, metadata, snippet);
+            resultsContainer.append(article);
+        }
+
+        setStatus(`Знайдено документів: ${results.length}. Час пошуку: ${Number(timeMs).toFixed(2)} мс.`);
+    }
+
+    async function searchByKeywords(query) {
+        searchStage.className = "active";
+
+        const response = await fetch("/api/search", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                query: query,
+                mode: "keyword"
+            })
+        });
+
+        const message = await response.json();
+
+        if (!response.ok) {
+            throw new Error(message.error || "Не вдалося виконати пошук.");
+        }
+
+        showResults(message.results, message.time_ms);
+
+        searchStage.className = "complete";
+        doneStage.className = "complete";
+    }
+
+    function searchWithOllama(query) {
+        return new Promise((resolve, reject) => {
+            const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+            const socket = new WebSocket(`${protocol}//${location.host}/ws/search`);
+
+            let finished = false;
+
+            expansionStage.className = "active";
+
+            function fail(message) {
+                if (finished) {
+                    return;
+                }
+
+                finished = true;
+                socket.close(1000, "Search failed");
+                reject(new Error(message));
+            }
+
+            socket.onopen = () => {
+                socket.send(JSON.stringify({ query: query }));
+            };
+
+            socket.onmessage = event => {
+                if (finished) {
+                    return;
+                }
+
+                try {
+                    const message = JSON.parse(event.data);
+
+                    switch (message.stage) {
+                        case "query_expansion":
+                            expansionStage.className = "complete";
+                            searchStage.className = "active";
+
+                            expanded.textContent = `Додаткові терміни: ${message.data.expanded_terms.join(", ")}`;
+                            break;
+
+                        case "keyword_search":
+                            searchStage.className = "complete";
+                            doneStage.className = "active";
+
+                            showResults(message.data.results, message.data.time_ms);
+                            break;
+
+                        case "done":
+                            doneStage.className = "complete";
+                            finished = true;
+
+                            socket.close(1000, "Search finished");
+                            resolve();
+                            break;
+
+                        case "error":
+                            fail(message.data.error);
+                            break;
+
+                        default:
+                            fail("Отримано невідомий етап пошуку.");
+                    }
+                } catch (error) {
+                    fail(error.message);
+                }
+            };
+
+            socket.onerror = () => {
+                fail("Помилка WebSocket-з’єднання.");
+            };
+
+            socket.onclose = () => {
+                if (!finished) {
+                    fail("З’єднання закрилося до завершення пошуку.");
+                }
+            };
+        });
+    }
+
+    form.addEventListener("submit", async event => {
+        event.preventDefault();
+
+        const query = queryInput.value.trim();
+        const mode = modeInput.value;
+
+        if (!query) {
+            setStatus("Введи пошуковий запит.", true);
+            return;
+        }
+
+        if (new TextEncoder().encode(query).length > 1000) {
+            setStatus("Запит не повинен перевищувати 1000 байтів.", true);
+            return;
+        }
+
+        searchButton.disabled = true;
+        searchButton.textContent = "Пошук...";
+
+        resetView(mode);
+
+        try {
+            if (mode === "keyword") {
+                await searchByKeywords(query);
+            } else {
+                await searchWithOllama(query);
+            }
+        } catch (error) {
+            setStatus(error.message, true);
+        } finally {
+            searchButton.disabled = false;
+            searchButton.textContent = "Знайти";
+        }
+    });
+
+    const indexForm = document.getElementById("index-form");
+    const threadsInput = document.getElementById("threads");
+    const indexButton = document.getElementById("index-button");
+    const indexStatus = document.getElementById("index-status");
+
+    indexForm.addEventListener("submit", async event => {
+        event.preventDefault();
+
+        const threads = threadsInput.valueAsNumber;
+
+        if (!Number.isInteger(threads) || threads < 1 || threads > 128) {
+            indexStatus.textContent = "Вкажи цілу кількість потоків від 1 до 128.";
+            indexStatus.className = "error";
+            return;
+        }
+
+        indexButton.disabled = true;
+        threadsInput.disabled = true;
+        indexButton.textContent = "Перебудова...";
+
+        indexStatus.className = "";
+        indexStatus.textContent = "Будується новий індекс. Пошук продовжує працювати з поточним.";
+
+        try {
+            const response = await fetch("/api/index", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ threads: threads })
+            });
+
+            const message = await response.json();
+
+            if (!response.ok) {
+                if (response.status === 409) {
+                    throw new Error("Інша перебудова вже виконується. Спробуй пізніше.");
+                }
+
+                throw new Error(message.error || "Не вдалося перебудувати індекс.");
+            }
+
+            indexStatus.textContent = `Індекс оновлено. Документів: ${message.documents_indexed}. Час побудови: ${Number(message.time_ms).toFixed(2)} мс.`;
+        } catch (error) {
+            indexStatus.textContent = error.message;
+            indexStatus.className = "error";
+        } finally {
+            indexButton.disabled = false;
+            threadsInput.disabled = false;
+            indexButton.textContent = "Перебудувати індекс";
+        }
+    });
+</script>
+</body>
+</html>
