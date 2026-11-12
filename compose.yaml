@@ -1,0 +1,47 @@
+services:
+  ollama:
+    image: ollama/ollama:0.40.15
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  ollama-init:
+    image: ollama/ollama:0.40.15
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    depends_on:
+      ollama:
+        condition: service_healthy
+    command: ["pull", "gemma3:1b"]
+    restart: "no"
+
+  server:
+    build: .
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      DATA_DIR: /app/data
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: gemma3:1b
+    volumes:
+      - type: bind
+        source: ${DATASET_DIR:-./data/raw/D1.7GB}
+        target: /app/data
+        read_only: true
+    depends_on:
+      ollama-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--max-time", "5", "http://127.0.0.1:8080/api/health"]
+      interval: 15s
+      timeout: 6s
+      retries: 5
+      start_period: 180s
+
+volumes:
+  ollama-data:

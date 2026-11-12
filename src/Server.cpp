@@ -84,7 +84,7 @@ void Server::run(int port, int threadCount)
         throw std::invalid_argument("Server thread count must be between 2 and 128.");
     }
 
-    app_.bindaddr("127.0.0.1")
+    app_.bindaddr("0.0.0.0")
         .port(static_cast<std::uint16_t>(port))
         .concurrency(static_cast<unsigned int>(threadCount))
         .run();

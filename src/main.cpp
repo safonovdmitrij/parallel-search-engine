@@ -1,6 +1,7 @@
 #include <chrono>
 #include <exception>
 #include <iostream>
+#include <cstdlib>
 
 #include "DataLoader.h"
 #include "TextProcessor.h"
@@ -16,7 +17,10 @@ int main()
 {
     try
     {
-        DataLoader dataLoader("data/raw");
+        const char* dataDirectory = std::getenv("DATA_DIR");
+
+        DataLoader dataLoader(dataDirectory ? dataDirectory : "data/raw");
+
         TextProcessor textProcessor;
 
         IndexService indexService(
@@ -40,9 +44,12 @@ int main()
             << "Build time: "
             << statistics->timeMs << " ms\n";
 
+        const char* ollamaUrl = std::getenv("OLLAMA_URL");
+        const char* ollamaModel = std::getenv("OLLAMA_MODEL");
+
         OllamaClient ollamaClient(
-    "http://127.0.0.1:11434",
-    "gemma3:1b"
+            ollamaUrl ? ollamaUrl : "http://127.0.0.1:11434",
+            ollamaModel ? ollamaModel : "gemma3:1b"
         );
 
         ApiController apiController(

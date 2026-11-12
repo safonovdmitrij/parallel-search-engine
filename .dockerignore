@@ -1,0 +1,10 @@
+.git
+.idea
+cmake-build-*
+build
+data
+vcpkg
+vcpkg_installed
+*.zip
+*.exe
+*.dll
