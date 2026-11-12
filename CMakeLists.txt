@@ -40,11 +40,18 @@ add_executable(search_server
         src/WebSocketController.cpp
 )
 
+add_executable(search cli/main.cpp)
+
 target_link_libraries(search_server PRIVATE
         CURL::libcurl
         nlohmann_json::nlohmann_json
         Crow::Crow
         Threads::Threads
+)
+
+target_link_libraries(search PRIVATE
+        CURL::libcurl
+        nlohmann_json::nlohmann_json
 )
 
 if(WIN32)
