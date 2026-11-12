@@ -129,20 +129,22 @@ void ThreadPool::worker()
 
 void ThreadPool::processDocument(const Task& task)
 {
-    const std::optional<Document> document = dataLoader_.loadDocument(task.documentId, task.path);
+    std::optional<Document> document = dataLoader_.loadDocument(task.documentId, task.path);
 
     if (!document)
     {
         return;
     }
 
-    const std::vector<std::string> tokens = textProcessor_.tokenize(document->text);
+    TermPositions termPositions = textProcessor_.collectTermPositions(document->text);
 
-    // Читання і токенізація виконуються паралельно.
-    // Зміну спільного індексу захищаємо окремим mutex.
+    // Текст більше не потрібен: звільняємо його до очікування м’ютекса.
+    document.reset();
+
     {
         std::lock_guard<std::mutex> lock(indexMutex_);
-        invertedIndex_.addDocument(document->id, tokens);
+
+        invertedIndex_.addDocument(task.documentId, std::move(termPositions));
     }
 }
 

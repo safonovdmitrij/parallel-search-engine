@@ -30,7 +30,7 @@ std::vector<SearchResult> SearchService::search(const std::string& query) const
             continue;
         }
 
-        const std::vector<Posting> postings = invertedIndex_.getPostings(term);
+        const std::vector<Posting>& postings = invertedIndex_.getPostings(term);
 
         for (const Posting& posting : postings)
         {

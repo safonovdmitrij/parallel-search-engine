@@ -24,7 +24,7 @@ int main()
             textProcessor
         );
 
-        const auto statistics = indexService.rebuild(4);
+        const auto statistics = indexService.rebuild(2);
 
         if (!statistics)
         {

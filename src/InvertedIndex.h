@@ -1,31 +1,31 @@
 #ifndef INVERTEDINDEX_H
 #define INVERTEDINDEX_H
 
-#include "Document.h"
-
+#include <cstddef>
+#include <string>
 #include <unordered_map>
 #include <vector>
-#include <string>
-#include <cstddef>
 
+#include "Document.h"
+#include "TermPositions.h"
 
 struct Posting
 {
     DocumentId documentId;
-    std::vector<std::size_t> positions;
+    std::vector<TokenPosition> positions;
 };
-
 
 class InvertedIndex
 {
 public:
-    void addDocument(DocumentId documentId, const std::vector<std::string>& tokens);
+    void addDocument(DocumentId documentId, TermPositions termPositions);
+
     std::size_t getDocumentsCount() const;
-    std::vector<Posting> getPostings(const std::string& term) const;
+    const std::vector<Posting>& getPostings(const std::string& term) const;
 
 private:
     std::unordered_map<std::string, std::vector<Posting>> index_;
     std::size_t documentsCount_ = 0;
 };
 
-#endif //INVERTEDINDEX_H
+#endif

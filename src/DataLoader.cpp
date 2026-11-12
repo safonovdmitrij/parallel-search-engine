@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <fstream>
 #include <sstream>
+#include <utility>
 
 DataLoader::DataLoader(const std::filesystem::path& dataDirectory)
     : dataDirectory_(dataDirectory)
@@ -48,7 +49,7 @@ std::optional<Document> DataLoader::loadDocument(DocumentId id, const std::files
     Document document;
     document.id = id;
     document.path = documentPath;
-    document.text = textBuffer.str();
+    document.text = std::move(textBuffer).str();
 
     return document;
 }
