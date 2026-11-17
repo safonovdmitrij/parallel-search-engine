@@ -30,7 +30,7 @@ services:
       OLLAMA_MODEL: gemma3:1b
     volumes:
       - type: bind
-        source: ${DATASET_DIR:-./data/raw/D1.7GB}
+        source: ${DATASET_DIR:-./data/functional}
         target: /app/data
         read_only: true
     depends_on:
