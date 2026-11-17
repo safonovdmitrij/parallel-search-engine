@@ -61,3 +61,18 @@ if(WIN32)
     )
 
 endif()
+
+find_package(Threads REQUIRED)
+
+add_executable(index_benchmark
+        scripts/tests/index_benchmark.cpp
+        src/DataLoader.cpp
+        src/TextProcessor.cpp
+        src/InvertedIndex.cpp
+        src/Indexer.cpp
+        src/ThreadPool.cpp
+)
+
+target_include_directories(index_benchmark PRIVATE src)
+
+target_link_libraries(index_benchmark PRIVATE Threads::Threads)

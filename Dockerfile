@@ -19,6 +19,7 @@ COPY CMakeLists.txt ./
 COPY src ./src
 COPY cli ./cli
 COPY web ./web
+COPY scripts/tests/index_benchmark.cpp ./scripts/tests/index_benchmark.cpp
 
 RUN cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
     && cmake --build build --parallel 2 --target search_server search
